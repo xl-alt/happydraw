@@ -277,7 +277,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 
 .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 
-/* Single image showcase mode - fixed aspect ratio, centered */
 .result-grid.single-image {
   grid-template-columns: 1fr;
   max-width: 420px;
@@ -303,7 +302,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .result-card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: var(--transition); }
 .result-card:hover img { transform: scale(1.03); }
 
-/* Gradient border glow on hover */
 .result-card::after {
   content: '';
   position: absolute;
@@ -320,7 +318,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 }
 .result-card:hover::after { opacity: 1; }
 
-/* Center zoom overlay */
 .result-card-zoom {
   position: absolute; inset: 0; z-index: 1;
   display: flex; align-items: center; justify-content: center;
@@ -335,7 +332,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 }
 .result-card:hover .result-card-zoom svg { transform: scale(1); }
 
-/* Top-right transparent SVG action buttons */
 .result-card-actions { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; gap: 4px; opacity: 0; transition: 0.2s; transform: translateY(-4px); }
 .result-card:hover .result-card-actions { opacity: 1; transform: translateY(0); }
 .card-action-btn {
@@ -350,7 +346,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .card-action-btn:hover { transform: scale(1.15); background: rgba(0,0,0,0.55); }
 .card-action-btn svg { width: 18px; height: 18px; }
 
-/* Image info bar */
 .result-card-info {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -588,8 +583,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
                     <option value="doubao-seedream-4-0-250828">doubao-seedream-4-0</option>
                     <option value="doubao-seedream-4-5-251128">doubao-seedream-4-5</option>
                     <option value="doubao-seedream-5-0-260128">doubao-seedream-5-0</option>
-                    <option value="doubao-seedream-5-0-260128" disabled>nano-banana-2-2k（即将上线）</option>
-                    <option value="doubao-seedream-5-0-260128" disabled>nano-banana-2-4k（即将上线）</option>
+                    <option value="nano-banana-2-2k">nano-banana-2-2k</option>
+                    <option value="nano-banana-2-4k">nano-banana-2-4k</option>
                   </select>
                 </div>
               </div>
@@ -703,7 +698,9 @@ class App {
       'qwen-image-max': { type: 'ratio', options: ['1:1', '4:3', '3:4', '9:16', '16:9'] },
       'doubao-seedream-4-0-250828': { type: 'doubao', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'] },
       'doubao-seedream-4-5-251128': { type: 'doubao', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'] },
-      'doubao-seedream-5-0-260128': { type: 'doubao', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'] }
+      'doubao-seedream-5-0-260128': { type: 'doubao', options: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'] },
+      'nano-banana-2-2k': { type: 'ratio', options: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'] },
+      'nano-banana-2-4k': { type: 'ratio', options: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'] }
     };
 
     this.dom = {
@@ -893,19 +890,32 @@ class App {
     return selectedSize;
   }
 
+  // ===== API Key 保存（含 ASCII 清理） =====
   saveApiKey() {
-    const key = this.dom.apiKeyInput.value.trim();
+    let key = this.dom.apiKeyInput.value.trim();
+    // 移除所有非 ASCII 可打印字符（防止中文、全角符号、不可见字符混入）
+    key = key.replace(/[^\x20-\x7E]/g, '');
+
     if (!key) {
       this.dom.apiKeyInput.style.borderColor = 'var(--danger)';
-      setTimeout(() => this.dom.apiKeyInput.style.borderColor = '', 2000);
+      this.dom.apiKeyInput.placeholder = '请输入有效的 API Key（仅支持英文字符）';
+      setTimeout(() => {
+        this.dom.apiKeyInput.style.borderColor = '';
+        this.dom.apiKeyInput.placeholder = 'sk-...';
+      }, 2500);
       return;
     }
+
     localStorage.setItem('ai_api_key', key);
     localStorage.setItem('ai_api_base', 'https://cn.happyapi.org/v1');
     this.dom.apiKeyModal.classList.add('hidden');
   }
 
-  getApiKey() { return localStorage.getItem('ai_api_key') || ''; }
+  // ===== 获取 API Key（防御性 ASCII 清理） =====
+  getApiKey() {
+    const key = localStorage.getItem('ai_api_key') || '';
+    return key.replace(/[^\x20-\x7E]/g, '');
+  }
 
   getApiUrl(endpoint) {
     let base = 'https://cn.happyapi.org/v1';
@@ -1025,7 +1035,6 @@ class App {
       n: this.dom.nSelect.value,
       size: this.getActualSize(),
       response_format: this.dom.formatSelect.value,
-      seed: this.dom.seedInput.value.trim() || undefined,
     };
   }
 
@@ -1038,11 +1047,13 @@ class App {
       size: params.size,
       response_format: params.response_format,
     };
-    if (params.seed) body.seed = parseInt(params.seed);
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.getApiKey()}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getApiKey()}`
+      },
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -1058,12 +1069,13 @@ class App {
     form.append('n', params.n);
     form.append('size', params.size);
     form.append('response_format', params.response_format);
-    if (params.seed) form.append('seed', params.seed);
     this.uploadedFiles.forEach(file => form.append('image', file));
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.getApiKey()}` },
+      headers: {
+        'Authorization': `Bearer ${this.getApiKey()}`
+      },
       body: form
     });
     const data = await res.json();
@@ -1105,10 +1117,8 @@ class App {
     const images = data.data || [];
     const n = images.length;
 
-    // Single image showcase mode
     this.dom.resultGrid.classList.toggle('single-image', n === 1);
 
-    // Show badge
     this.dom.resultBadge.style.display = 'inline-block';
     this.dom.resultBadge.textContent = `${params.model} · ${params.size}`;
 
@@ -1136,7 +1146,6 @@ class App {
           </div>
         </div>`;
 
-      // Expired image handling
       const imgEl = card.querySelector('img');
       imgEl.addEventListener('error', () => {
         imgEl.remove();
@@ -1152,7 +1161,6 @@ class App {
         card.insertBefore(expiredDiv, card.querySelector('.result-card-actions'));
       });
 
-      // Center zoom -> lightbox
       card.querySelector('.result-card-zoom').addEventListener('click', () => {
         this.openLightbox(imgSrc, filename, this.lastRequest);
       });
@@ -1195,11 +1203,9 @@ class App {
       curl += `  -F "model=${params.model}" \\\n  -F "prompt=${prompt}" \\\n`;
       curl += `  -F "n=${params.n}" \\\n  -F "size=${params.size}" \\\n  -F "response_format=${params.response_format}" \\\n`;
       for (let i = 0; i < (filesCount || 0); i++) curl += `  -F "image=@image_${i + 1}.png" \\\n`;
-      if (params.seed) curl += `  -F "seed=${params.seed}"`;
       curl = curl.replace(/ \\\n$/, '');
     } else {
       const body = { model: params.model, prompt, n: parseInt(params.n), size: params.size, response_format: params.response_format };
-      if (params.seed) body.seed = parseInt(params.seed);
       curl = `curl -X POST "${url}" \\\n  -H "Authorization: Bearer ${this.getApiKey()}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
     }
 
